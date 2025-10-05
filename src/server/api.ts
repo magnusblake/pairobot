@@ -432,6 +432,53 @@ app.get('/api/opportunities', authMiddleware, async (req: AuthRequest, res: Resp
   }
 });
 
+// Get detailed opportunity analysis
+app.get('/api/opportunity-detail/:symbol/:buyExchange/:sellExchange', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { symbol, buyExchange, sellExchange } = req.params;
+    
+    // Fetch current opportunities to get the base data
+    const response = await fetch('http://localhost:3002/opportunities');
+    const data = await response.json();
+    
+    // Find the matching opportunity
+    const opportunity = data.opportunities.find((opp: any) => 
+      opp.symbol === symbol && 
+      opp.buyExchange === buyExchange && 
+      opp.sellExchange === sellExchange
+    );
+    
+    if (!opportunity) {
+      return res.status(404).json({ error: 'Возможность не найдена' });
+    }
+    
+    // Request detailed analysis from bot service
+    const detailResponse = await fetch('http://localhost:3002/opportunity-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symbol,
+        buyExchange,
+        sellExchange,
+        buyPrice: opportunity.buyPrice,
+        sellPrice: opportunity.sellPrice,
+        profitPercentage: opportunity.profitPercentage
+      })
+    });
+    
+    const detailData = await detailResponse.json();
+    
+    res.json({
+      ...opportunity,
+      marketData: detailData.marketData,
+      aiAnalysis: detailData.aiAnalysis
+    });
+  } catch (error) {
+    console.error('Get opportunity detail error:', error);
+    res.status(500).json({ error: 'Ошибка получения детальной информации' });
+  }
+});
+
 // Get bot statistics
 app.get('/api/bot-stats', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {

@@ -8,6 +8,7 @@ import { ArbitrageAnalyzer } from './arbitrage';
 import { TelegramServiceEnhanced } from './services/telegram-enhanced';
 import { RedisService } from './services/redis';
 import { PairsCacheService } from './services/pairs-cache';
+import { getAnalyzer } from './services/opportunityAnalyzer';
 import { EXCHANGES, PRICE_UPDATE_INTERVAL } from './config';
 import { MarketType, PriceData } from './types';
 import express from 'express';
@@ -95,6 +96,37 @@ class ArbitrageBot {
       console.log(`📊 Returning ${sortedPairs.length} available pairs to frontend`);
       
       res.json({ pairs: sortedPairs });
+    });
+
+    app.post('/opportunity-analysis', async (req: any, res: any) => {
+      try {
+        const { symbol, buyExchange, sellExchange, buyPrice, sellPrice, profitPercentage } = req.body;
+        
+        if (!symbol || !buyExchange || !sellExchange || !buyPrice || !sellPrice || profitPercentage === undefined) {
+          return res.status(400).json({ error: 'Missing required parameters' });
+        }
+
+        console.log(`🔍 Analyzing opportunity: ${symbol} (${buyExchange} → ${sellExchange})`);
+        
+        const analyzer = getAnalyzer();
+        const analysis = await analyzer.getDetailedAnalysis(
+          symbol,
+          buyExchange,
+          sellExchange,
+          buyPrice,
+          sellPrice,
+          profitPercentage
+        );
+        
+        res.json(analysis);
+      } catch (error: any) {
+        console.error('Error analyzing opportunity:', error);
+        res.status(500).json({ 
+          error: 'Failed to analyze opportunity',
+          marketData: null,
+          aiAnalysis: null
+        });
+      }
     });
 
     

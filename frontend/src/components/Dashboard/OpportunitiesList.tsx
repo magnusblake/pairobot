@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
 import { 
@@ -45,11 +46,10 @@ interface OpportunityCardProps {
   viewFormat: ViewFormat;
   onTrade: (opp: Opportunity, action: 'buy' | 'sell') => void;
   getExchangeUrl: (exchange: string, symbol: string, action: 'buy' | 'sell') => string;
-  isPinned?: boolean;
   onClick?: (opp: Opportunity) => void;
 }
 
-const OpportunityCard = memo<OpportunityCardProps>(({ opp, viewFormat, onTrade, getExchangeUrl, isPinned, onClick }) => {
+const OpportunityCard = memo<OpportunityCardProps>(({ opp, viewFormat, onTrade, getExchangeUrl, onClick }) => {
   
   // Format time as HH:MM:SS
   const formatTime = (timestamp: number) => {
@@ -67,9 +67,9 @@ const OpportunityCard = memo<OpportunityCardProps>(({ opp, viewFormat, onTrade, 
   return (
     <div
       onClick={() => onClick && onClick(opp)}
-      className={`card transition-all relative cursor-pointer ${
+      className={`card transition-all relative cursor-pointer hover:bg-dark-secondary/50 ${
         viewFormat === 'grid-4' ? 'text-sm' : ''
-      } ${isPinned ? '' : 'hover:bg-dark-secondary/50'}`}
+      }`}
     >
       
       <div className={`flex flex-col ${
@@ -193,11 +193,11 @@ const OpportunityCard = memo<OpportunityCardProps>(({ opp, viewFormat, onTrade, 
 
 export default function OpportunitiesList() {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [marketType, setMarketType] = useState<'spot' | 'futures'>('spot');
   const [viewFormat] = useState<ViewFormat>('grid-4'); // Fixed to 4x4 grid
   const [searchTerm, setSearchTerm] = useState('');
-  const [pinnedOpportunity, setPinnedOpportunity] = useState<Opportunity | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -291,13 +291,10 @@ export default function OpportunitiesList() {
     }
   }, []);
   
-  const handlePin = useCallback((opp: Opportunity) => {
-    if (pinnedOpportunity?.id === opp.id) {
-      setPinnedOpportunity(null);
-    } else {
-      setPinnedOpportunity(opp);
-    }
-  }, [pinnedOpportunity]);
+  const handleCardClick = useCallback((opp: Opportunity) => {
+    // Navigate to detail page
+    navigate(`/opportunity/${encodeURIComponent(opp.symbol)}/${encodeURIComponent(opp.buyExchange)}/${encodeURIComponent(opp.sellExchange)}`);
+  }, [navigate]);
 
   // Filter opportunities - мемоизируем для предотвращения лишних ререндеров
   const filteredOpps = useMemo(() => {
@@ -434,155 +431,6 @@ export default function OpportunitiesList() {
 
       </div>
 
-      {/* Pinned Opportunity - Full Focus Modal */}
-      {pinnedOpportunity && (
-        <div 
-          className="fixed top-0 left-0 right-0 bottom-0 z-50 flex items-center justify-center backdrop-blur-xl p-4"
-          onClick={() => setPinnedOpportunity(null)}
-        >
-          <div 
-            className="relative max-w-2xl w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Warning about data freshness */}
-            {(() => {
-              const secondsAgo = Math.floor((Date.now() - pinnedOpportunity.timestamp) / 1000);
-              if (secondsAgo > 10) {
-                return (
-                  <div className="mb-4 bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-4 flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-yellow-400 font-semibold text-sm mb-1">
-                        Внимание: Данные могут быть неактуальны
-                      </p>
-                      <p className="text-yellow-300/80 text-xs">
-                        Эта возможность была обнаружена {secondsAgo} секунд назад. 
-                        Цены могли измениться. Проверьте актуальность на бирже перед совершением сделки.
-                      </p>
-                    </div>
-                  </div>
-                );
-              }
-              return null;
-            })()}
-            
-            {/* Pinned card - enhanced */}
-            <div className="bg-gradient-to-br from-dark-card to-dark-secondary border-2 border-gray-700 rounded-xl p-5 md:p-6 shadow-2xl">
-              <div className="space-y-4">
-                {/* Symbol and Profit */}
-                <div className="flex items-center justify-between pb-3 border-b border-gray-700">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-blue-500/30 to-purple-500/30 rounded-xl">
-                      <CoinLogo symbol={pinnedOpportunity.symbol} size={32} />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-white">{pinnedOpportunity.symbol}</h2>
-                      <span className="text-xs text-gray-400 uppercase">
-                        {pinnedOpportunity.marketType}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="px-4 py-2 bg-dark-secondary rounded-lg border border-dark-border">
-                      <p className="text-[10px] text-gray-400 mb-0.5">Прибыль</p>
-                      <p className="text-xl font-bold text-white">
-                        +{pinnedOpportunity.profitPercentage.toFixed(3)}%
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Exchange Info */}
-                <div className="grid md:grid-cols-2 gap-3">
-                  {/* Buy */}
-                  <div className="bg-gradient-to-br from-green-900/30 via-green-800/20 to-transparent border border-green-500/30 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="p-1.5 bg-green-500/20 rounded">
-                        <ExchangeLogo exchange={pinnedOpportunity.buyExchange} size={18} />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-[10px] text-gray-400 uppercase">Купить на</p>
-                        <p className="text-base font-bold text-white">{pinnedOpportunity.buyExchange}</p>
-                      </div>
-                    </div>
-                    <div className="mb-3">
-                      <p className="text-[10px] text-gray-400 mb-0.5">Цена покупки</p>
-                      <p className="text-lg font-bold text-green-400">${pinnedOpportunity.buyPrice.toFixed(4)}</p>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleTrade(pinnedOpportunity, 'buy');
-                      }}
-                      className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold shadow-lg shadow-green-500/30"
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                      Купить на {pinnedOpportunity.buyExchange}
-                    </button>
-                  </div>
-
-                  {/* Sell */}
-                  <div className="bg-gradient-to-br from-blue-900/30 via-blue-800/20 to-transparent border border-blue-500/30 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="p-1.5 bg-blue-500/20 rounded">
-                        <ExchangeLogo exchange={pinnedOpportunity.sellExchange} size={18} />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-[10px] text-gray-400 uppercase">Продать на</p>
-                        <p className="text-base font-bold text-white">{pinnedOpportunity.sellExchange}</p>
-                      </div>
-                    </div>
-                    <div className="mb-3">
-                      <p className="text-[10px] text-gray-400 mb-0.5">Цена продажи</p>
-                      <p className="text-lg font-bold text-blue-400">${pinnedOpportunity.sellPrice.toFixed(4)}</p>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleTrade(pinnedOpportunity, 'sell');
-                      }}
-                      className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold shadow-lg shadow-blue-500/30"
-                    >
-                      <DollarSign className="w-4 h-4" />
-                      Продать на {pinnedOpportunity.sellExchange}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Footer Info */}
-                <div className="grid grid-cols-3 gap-3 pt-3 border-t border-gray-700">
-                  <div className="text-center">
-                    <Clock className="w-4 h-4 mx-auto mb-1 text-gray-400" />
-                    <p className="text-[10px] text-gray-500 mb-0.5">Время</p>
-                    <p className="text-xs font-mono text-white">
-                      {new Date(pinnedOpportunity.timestamp).toLocaleTimeString('ru-RU', { 
-                        hour: '2-digit', 
-                        minute: '2-digit', 
-                        second: '2-digit' 
-                      })}
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <Zap className="w-4 h-4 mx-auto mb-1 text-yellow-400" />
-                    <p className="text-[10px] text-gray-500 mb-0.5">Комиссия сети</p>
-                    <p className="text-xs font-mono text-yellow-400">
-                      {getNetworkInfo(pinnedOpportunity.symbol).fee}
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <ArrowRightLeft className="w-4 h-4 mx-auto mb-1 text-blue-400" />
-                    <p className="text-[10px] text-gray-500 mb-0.5">Время перевода</p>
-                    <p className="text-xs font-mono text-blue-400">
-                      {getNetworkInfo(pinnedOpportunity.symbol).transferTime}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Opportunities Grid */}
       {filteredOpps.length === 0 ? (
         <div className="card text-center py-8 md:py-12">
@@ -597,10 +445,9 @@ export default function OpportunitiesList() {
           viewFormat === 'list' ? 'grid-cols-1' :
           viewFormat === 'grid-2' ? 'grid-cols-1 md:grid-cols-2' :
           'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
-        } ${pinnedOpportunity ? 'opacity-20 blur-md pointer-events-none' : ''}`}>
+        }`}>
           {filteredOpps.map((opp) => {
             const uniqueKey = opp.id || generateOpportunityId(opp);
-            const isPinned = pinnedOpportunity?.id === opp.id;
             return (
               <OpportunityCard
                 key={uniqueKey}
@@ -608,8 +455,7 @@ export default function OpportunitiesList() {
                 viewFormat={viewFormat}
                 onTrade={handleTrade}
                 getExchangeUrl={getExchangeUrl}
-                isPinned={isPinned}
-                onClick={handlePin}
+                onClick={handleCardClick}
               />
             );
           })}

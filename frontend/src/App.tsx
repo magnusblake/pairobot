@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import Dashboard from './components/Dashboard/Dashboard';
+import OpportunityDetail from './components/Dashboard/OpportunityDetail';
 import Header from './components/Layout/Header';
 
 function AppContent() {
@@ -33,19 +35,29 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-bg">
-      <Header />
-      <main className="px-4 sm:px-6 lg:px-8 py-6">
-        <Dashboard />
-      </main>
-    </div>
+    <Routes>
+      <Route path="/dashboard" element={
+        <div className="min-h-screen bg-dark-bg">
+          <Header />
+          <main className="px-4 sm:px-6 lg:px-8 py-6">
+            <Dashboard />
+          </main>
+        </div>
+      } />
+      <Route path="/opportunity/:symbol/:buyExchange/:sellExchange" element={
+        <OpportunityDetail />
+      } />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
   );
 }
 
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <Router>
+        <AppContent />
+      </Router>
     </AuthProvider>
   );
 }

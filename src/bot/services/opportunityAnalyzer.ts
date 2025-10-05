@@ -145,12 +145,12 @@ export class OpportunityAnalyzer {
       // Analyze price volatility
       const volatility = ((marketData.high24h - marketData.low24h) / marketData.low24h) * 100;
       if (volatility > 10) {
-        risks.push(`Высокая волатильность (${volatility.toFixed(1)}%)');
+        risks.push(`Высокая волатильность (${volatility.toFixed(1)}%)`);
         confidence -= 10;
       } else if (volatility > 5) {
-        opportunities.push(`Умеренная волатильность (${volatility.toFixed(1)}%)');
+        opportunities.push(`Умеренная волатильность (${volatility.toFixed(1)}%)`);
       } else {
-        opportunities.push(`Низкая волатильность (${volatility.toFixed(1)}%)');
+        opportunities.push(`Низкая волатильность (${volatility.toFixed(1)}%)`);
         confidence += 5;
       }
 
